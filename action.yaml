@@ -1,0 +1,99 @@
+name: Check links
+description: Check the links of the provided site and upload a helpful CSV of results.
+author: 'DAKLabb'
+inputs:
+  url:
+    description: The url of the site to check
+    required: true
+  site-name:
+    description: The name of the site being checked.
+    required: false
+    default: ''
+  report-name:
+    required: false
+    default: Report
+  check-external:
+    description: Whether to check extenral links
+    required: false
+    default: 'false'
+  include-warnings:
+    description: Whether to include warnings
+    required: false
+    default: 'true'
+  debug-config:
+    description: Set to true to log the contents of the linkchecker config.
+    required: false
+    default: 'false'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Confirm site is accessible
+      shell: bash
+      run: |
+        set +e
+        wget --server-response -q --delete-after ${{ inputs.url }}
+        if [ $? -ne 0 ]; then
+          echo "::error::URL: ${{ inputs.url }} not accessible."
+          exit 1
+        fi
+    - name: Install link checker
+      shell: bash
+      run: pip install linkchecker
+    - name: Setup config file
+      shell: bash
+      run: echo -e "[csv]\nseparator=,\n[output]\nstatus=0" > lcconfig
+    - name: Configure warnings
+      if: inputs.include-warnings == 'false'
+      shell: bash
+      run: echo "warnings=0" >> lcconfig
+    - name: Configure external checks
+      if: inputs.check-external == 'true'
+      shell: bash
+      run: echo -e "[filtering]\ncheckextern=1" >> lcconfig
+    - name: Log config for testing
+      if: inputs.debug-config == 'true'
+      shell: bash
+      run: cat lcconfig
+    - name: Check ${{ inputs.site-name }} Links
+      shell: bash
+      id: check
+      run: |
+        set +e
+        linkchecker https://${{ inputs.url }} --config lcconfig -F csv/utf-8/link_report.csv
+        if [ $? -ne 0 ]; then
+          echo "The link check failed, there shoudl be a report"
+          echo "report-generated=true" >> $GITHUB_OUTPUT
+        fi
+
+        echo "Scan done, generating summary"
+
+        started=false
+        while read p; do
+          let "ln++"
+          # skip comments (top and bottom)
+          if [[ $p == \#* ]]; then
+            continue
+          fi
+          # make sure first line after comments is skipped
+          if [[ "$started" = false ]]; then
+            started=true
+            continue
+          fi
+          
+          IFS=',' read -r -a array <<< "$p"
+
+          if [[ ${array[10]} == '' ]]; then
+            echo "::error::URL: ${array[0]} on page:${array[1]} is returning a ${array[3]}"
+          else
+            echo "::error::URL: ${array[0]} linked from '${array[10]}' on page:${array[1]} is returning a ${array[3]}"
+          fi
+
+        done < link_report.csv
+
+    - name: Upload report
+      if: always() && steps.check.outputs.report-generated == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.report-name }}
+        path: link_report.csv

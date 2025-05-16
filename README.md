@@ -8,7 +8,7 @@ To use the link checker, simply call the action with the domain you want to chec
  - name: Check Links
    uses: DAKLabb/check-links@main
    with:
-     url: my URL.
+     url: myURL.tld
 ```
 
 ## Inputs

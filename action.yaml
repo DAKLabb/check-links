@@ -3,7 +3,7 @@ description: Check the links of the provided site and upload a helpful CSV of re
 author: 'DAKLabb'
 inputs:
   url:
-    description: The url of the site to check
+    description: The url of the site to check.
     required: true
   site-name:
     description: The name of the site being checked.
@@ -13,11 +13,11 @@ inputs:
     required: false
     default: Report
   check-external:
-    description: Whether to check extenral links
+    description: Whether to check external links.
     required: false
     default: 'false'
   include-warnings:
-    description: Whether to include warnings
+    description: Whether to include warnings.
     required: false
     default: 'true'
   debug-config:
@@ -62,7 +62,7 @@ runs:
         set +e
         linkchecker https://${{ inputs.url }} --config lcconfig -F csv/utf-8/link_report.csv
         if [ $? -ne 0 ]; then
-          echo "The link check failed, there shoudl be a report"
+          echo "The link check failed, there should be a report"
           echo "report-generated=true" >> $GITHUB_OUTPUT
         fi
 
